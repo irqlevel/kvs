@@ -1,0 +1,11 @@
+bin/
+lib/
+*.obj
+*.a
+*.pyc
+*.o
+*.patch
+server/server
+client/client
+vgcore.*
+.vscode/
