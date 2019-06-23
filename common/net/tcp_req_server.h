@@ -16,6 +16,7 @@ public:
     struct RequestHeader {
         u32 protocol_version_;
         u32 payload_length_;
+        u32 type_;
     };
 
     struct Request {
@@ -44,7 +45,7 @@ public:
     public:
         Client();
         Stdlib::Error Connect(const char *address, int port);
-        Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error> SendRequest(const Stdlib::ByteArray<u8>& request);
+        Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error> SendRequest(u32 type, const Stdlib::ByteArray<u8>& request);
         void Close();
         virtual ~Client();
         Stdlib::UniquePtr<Net::Socket>& GetSocket();

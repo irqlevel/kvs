@@ -1,13 +1,14 @@
 #pragma once
 
 #include "base.h"
+#include "deleter.h"
 
 #include <common/malloc/malloc.h>
 
 namespace Stdlib
 {
 
-template<typename T>
+template<class T, class Deleter = DefaultObjectDeleter<T>>
 class UniquePtr final
 {
 public:
@@ -27,7 +28,7 @@ public:
     }
 
     UniquePtr()
-        : Object(nullptr)
+        : object_(nullptr)
     {
     }
 
@@ -43,16 +44,16 @@ public:
 
     void Reset(T* object)
     {
-        BUG_ON(Object != nullptr && Object == object);
+        BUG_ON(object_ != nullptr && object_ == object);
 
-        if (Object != nullptr)
+        if (object_ != nullptr)
         {
             //TODO:panic(get_kapi()->unique_key_unregister(Object, this) != 0);
-            delete Object;
-            Object = nullptr;
+            delete object_;
+            object_ = nullptr;
         }
 
-        Object = object;
+        object_ = object;
         //TODO:if (Object != nullptr)
         //  panic(get_kapi()->unique_key_register(Object, this, get_kapi_pool_type(PoolType)) != 0);
     }
@@ -64,12 +65,12 @@ public:
 
     T* Release()
     {
-        T* object = Object;
+        T* object = object_;
 
         //TODO:if (object != nullptr)
         //    panic(get_kapi()->unique_key_unregister(object, this) != 0);
 
-        Object = nullptr;
+        object_ = nullptr;
         return object;
     }
 
@@ -80,7 +81,7 @@ public:
 
     T* Get() const
     {
-        return Object;
+        return object_;
     }
 
     T& operator*() const
@@ -94,13 +95,14 @@ public:
     }
 
 private:
-    T* Object;
+    T* object_;
+    Deleter deleter_;
 };
 
-template<typename T, class... Args>
-UniquePtr<T> MakeUnique(Args&&... args)
+template<class T, class Deleter = DefaultObjectDeleter<T>, class... Args>
+UniquePtr<T, Deleter> MakeUnique(Args&&... args)
 {
-    return UniquePtr<T>(TAlloc<T>(Stdlib::Forward<Args>(args)...));
+    return UniquePtr<T, Deleter>(TAlloc<T>(Stdlib::Forward<Args>(args)...));
 }
 
 }

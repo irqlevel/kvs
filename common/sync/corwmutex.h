@@ -35,7 +35,7 @@ namespace Sync
         Stdlib::ListEntry shared_waiters_;
 
         SpinLock mu_lock_;
-        Coroutine *owner_;
+        CoroutinePtr owner_;
         ulong shared_owner_count_;
 
         ulong shared_waiters_count_;

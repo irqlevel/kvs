@@ -7,45 +7,55 @@
 
 namespace IO
 {
-    Stdlib::Error CoEpoll::Add(int fd, Sync::Coroutine *co)
+
+    static const int CoEpollLL = 20;
+
+    CoEpoll::CoEpoll()
+        : stopping_(false)
+    {
+        Trace(CoEpollLL, "epoll %p ctor\n", this);
+    }
+
+    CoEpoll::~CoEpoll()
+    {
+        Close();
+        Trace(CoEpollLL, "epoll %p dtor\n", this);
+    }
+
+    Stdlib::Error CoEpoll::Add(int fd, Sync::CoroutinePtr co)
     {
         auto it = fd_co_map_.Lookup(fd);
         if (it != fd_co_map_.End()) {
             auto coset = *it;
             if (!coset->Add(co))
                 return STDLIB_ERRNO_ERROR(EEXIST);
-            Sync::Coroutine::Get(co);
         } else {
             auto coset = Stdlib::MakeShared<CoSetType>();
             if (coset.Get() == nullptr)
                 return STDLIB_ERRNO_ERROR(ENOMEM);
             if (!coset->Add(co))
                 return STDLIB_ERRNO_ERROR(ENOMEM);
-            Sync::Coroutine::Get(co);
 
             if (!fd_co_map_.Insert(fd, coset)) {
-                Sync::Coroutine::Put(co);
                 return STDLIB_ERRNO_ERROR(ENOMEM);
             }
 
             auto err = epoll_.Add(fd, IO::Epoll::kIN | IO::Epoll::kOUT | IO::Epoll::kONESHOT);
             if (err) {
                 fd_co_map_.Remove(fd);
-                Sync::Coroutine::Put(co);
                 return err;
             }
         }
         return 0;
     }
 
-    Stdlib::Error CoEpoll::Remove(int fd, Sync::Coroutine *co)
+    Stdlib::Error CoEpoll::Remove(int fd, Sync::CoroutinePtr co)
     {
         auto it = fd_co_map_.Lookup(fd);
         if (it != fd_co_map_.End()) {
             auto coset = *it;
             if (!coset->Remove(co))
                 return STDLIB_ERRNO_ERROR(ENOENT);
-            Sync::Coroutine::Put(co);
 
             if (coset->GetCount() == 0) {
                 fd_co_map_.Remove(fd);
@@ -133,7 +143,8 @@ done:
                 auto coset = *it;
                 for (auto it2 = coset->Begin(); it2 != coset->End(); it2++) {
                     auto co = *it2;
-                    Sync::Coroutine::Put(co);
+
+                    Trace(CoEpollLL, "co %p ref %lu\n", co.Get(), co->GetRefCounter());
                 }
                 coset->Clear();
             }

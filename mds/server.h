@@ -13,6 +13,8 @@ class Server : public Net::TcpReqServer
 {
 public:
 
+    static const int kEchoRequestType = 1;
+
     static Server& GetInstance() {
         static Server g_server;
         return g_server;

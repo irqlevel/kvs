@@ -28,6 +28,6 @@ namespace Sync
 
         Stdlib::ListEntry waiters_;
         SpinLock mu_lock_;
-        Coroutine *owner_;
+        CoroutinePtr owner_;
     };
 }

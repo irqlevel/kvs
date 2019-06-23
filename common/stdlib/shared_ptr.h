@@ -6,11 +6,12 @@
 
 #include "base.h"
 #include "trace.h"
+#include "deleter.h"
 
 namespace Stdlib
 {
 
-template<typename T>
+template<class T, class Deleter = DefaultObjectDeleter<T>>
 class ObjectReference final
 {
 private:
@@ -18,64 +19,67 @@ private:
 
 public:
     ObjectReference(T* object)
-        : Object(nullptr)
+        : object_(nullptr)
     {
-        Counter.Set(1);
-        Object = object;
+        counter_.Set(1);
+        object_ = object;
 
-        Trace(SharedPtrLL, "objref 0x%p obj 0x%p ctor\n", this, Object);
+        Trace(SharedPtrLL, "objref 0x%p obj 0x%p ctor\n", this, object_);
     }
 
     ~ObjectReference()
     {
         Trace(SharedPtrLL, "objref 0x%p dtor\n", this);
 
-        BUG_ON(Object != nullptr);
-        BUG_ON(Counter.Get() != 0);
+        BUG_ON(object_ != nullptr);
+        BUG_ON(counter_.Get() != 0);
     }
 
     void IncCounter()
     {
-        Counter.Inc();
-        Trace(SharedPtrLL, "objref 0x%p obj 0x%p inc counter %d\n", this, Object, Counter.Get());
+        counter_.Inc();
+        Trace(SharedPtrLL, "objref 0x%p obj 0x%p inc counter %d\n", this, object_, counter_.Get());
     }
 
     int GetCounter()
     {
-        return Counter.Get();
+        return counter_.Get();
     }
 
     void SetObject(T *object)
     {
-        if (BUG_ON(Object != nullptr))
+        if (BUG_ON(object_ != nullptr))
             return;
 
-        Object = object;
+        object_ = object;
     }
 
     T* GetObject()
     {
-        return Object;
+        return object_;
     }
 
     bool DecCounter()
     {
-        if (Counter.Dec() == 0)
+        if (counter_.Dec() == 0)
         {
-            Trace(SharedPtrLL, "objref 0x%p obj 0x%p dec counter %d\n", this, Object, Counter.Get());
+            Trace(SharedPtrLL, "objref 0x%p obj 0x%p dec counter %d\n", this, object_, counter_.Get());
 
-            delete Object;
-            Object = nullptr;
+            Deleter deleter;
+
+            deleter(object_);
+
+            object_ = nullptr;
             return true;
         }
-        Trace(SharedPtrLL, "objref 0x%p obj 0x%p dec counter %d\n", this, Object, Counter.Get());
+        Trace(SharedPtrLL, "objref 0x%p obj 0x%p dec counter %d\n", this, object_, counter_.Get());
 
         return false;
     }
 
 private:
-    Sync::Atomic Counter;
-    T* Object;
+    Sync::Atomic counter_;
+    T* object_;
 
     ObjectReference() = delete;
     ObjectReference(const ObjectReference& other) = delete;
@@ -84,7 +88,7 @@ private:
     ObjectReference& operator=(ObjectReference&& other) = delete;
 };
 
-template<typename T>
+template<class T, class Deleter = DefaultObjectDeleter<T>>
 class SharedPtr final
 {
 private:
@@ -94,14 +98,14 @@ static const int SharedPtrLL = 150;
 public:
     SharedPtr()
     {
-        ObjectRef = nullptr;
+        object_ref_ = nullptr;
 
         Trace(SharedPtrLL, "ptr 0x%p ctor obj 0x%p\n", this, Get());
     }
 
-    SharedPtr(ObjectReference<T> *objectRef)
+    SharedPtr(ObjectReference<T, Deleter> *object_ref)
     {
-        ObjectRef = objectRef;
+        object_ref_ = object_ref;
 
         Trace(SharedPtrLL, "ptr 0x%p ctor obj 0x%p\n", this, Get());
     }
@@ -117,10 +121,10 @@ public:
     SharedPtr(const SharedPtr<T>& other)
         : SharedPtr()
     {
-        ObjectRef = other.ObjectRef;
-        if (ObjectRef != nullptr)
+        object_ref_ = other.object_ref_;
+        if (object_ref_ != nullptr)
         {
-            ObjectRef->IncCounter();
+            object_ref_->IncCounter();
         }
 
         Trace(SharedPtrLL, "ptr 0x%p ctor obj 0x%p\n", this, Get());
@@ -129,8 +133,8 @@ public:
     SharedPtr(SharedPtr<T>&& other)
         : SharedPtr()
     {
-        ObjectRef = other.ObjectRef;
-        other.ObjectRef = nullptr;
+        object_ref_ = other.object_ref_;
+        other.object_ref_ = nullptr;
 
         Trace(SharedPtrLL, "ptr 0x%p ctor obj 0x%p\n", this, Get());
     }
@@ -140,10 +144,10 @@ public:
         if (this != &other)
         {
             Reset(nullptr);
-            ObjectRef = other.ObjectRef;
-            if (ObjectRef != nullptr)
+            object_ref_ = other.object_ref_;
+            if (object_ref_ != nullptr)
             {
-                ObjectRef->IncCounter();
+                object_ref_->IncCounter();
             }
         }
 
@@ -157,8 +161,8 @@ public:
         if (this != &other)
         {
             Reset(nullptr);
-            ObjectRef = other.ObjectRef;
-            other.ObjectRef = nullptr;
+            object_ref_ = other.object_ref_;
+            other.object_ref_ = nullptr;
         }
 
         Trace(SharedPtrLL, "ptr 0x%p op= obj 0x%p\n", this, Get());
@@ -168,7 +172,7 @@ public:
 
     T* Get() const
     {
-        return (ObjectRef != nullptr) ? ObjectRef->GetObject() : nullptr;
+        return (object_ref_ != nullptr) ? object_ref_->GetObject() : nullptr;
     }
 
     T& operator*() const
@@ -183,7 +187,7 @@ public:
 
     int GetCounter()
     {
-        return (ObjectRef != nullptr) ? ObjectRef->GetCounter() : 0;
+        return (object_ref_ != nullptr) ? object_ref_->GetCounter() : 0;
     }
 
     ~SharedPtr()
@@ -197,20 +201,20 @@ public:
 
         BUG_ON(Get() != nullptr && Get() == object);
 
-        if (ObjectRef != nullptr)
+        if (object_ref_ != nullptr)
         {
-            if (ObjectRef->DecCounter())
+            if (object_ref_->DecCounter())
             {
-                delete ObjectRef;
+                delete object_ref_;
             }
         }
 
-        ObjectRef = nullptr;
+        object_ref_ = nullptr;
 
         if (object != nullptr)
         {
-            ObjectRef = TAlloc<ObjectReference<T>>(object);
-            if (ObjectRef == nullptr)
+            object_ref_ = TAlloc<ObjectReference<T>>(object);
+            if (object_ref_ == nullptr)
             {
                 return;
             }
@@ -223,25 +227,25 @@ public:
     }
 
 private:
-    ObjectReference<T>* ObjectRef;
+    ObjectReference<T, Deleter>* object_ref_;
 };
 
-template<typename T, class... Args>
-SharedPtr<T> MakeShared(Args&&... args)
+template<class T, class Deleter = DefaultObjectDeleter<T>, class... Args>
+SharedPtr<T, Deleter> MakeShared(Args&&... args)
 {
-    ObjectReference<T>* objRef = TAlloc<ObjectReference<T>>(nullptr);
-    if (objRef == nullptr)
-        return SharedPtr<T>();
+    ObjectReference<T, Deleter>* object_ref = TAlloc<ObjectReference<T, Deleter>>(nullptr);
+    if (object_ref == nullptr)
+        return SharedPtr<T, Deleter>();
 
     T* object = TAlloc<T>(Stdlib::Forward<Args>(args)...);
     if (object == nullptr)
     {
-        delete objRef;
-        return SharedPtr<T>();
+        delete object_ref;
+        return SharedPtr<T, Deleter>();
     }
 
-    objRef->SetObject(object);
-    return SharedPtr<T>(objRef);
+    object_ref->SetObject(object);
+    return SharedPtr<T, Deleter>(object_ref);
 }
 
 }

@@ -48,6 +48,8 @@ namespace Net
             return ErrInvalidProtocolVersion;
         }
 
+        request->header_.type_ = Stdlib::ByteOrder::NtohU32(request->header_.type_);
+
         request->header_.payload_length_ = Stdlib::ByteOrder::NtohU32(request->header_.payload_length_);
         if (request->header_.payload_length_ > kMaxRequestPayloadSize) {
             Trace(0, "no memory\n");
@@ -167,7 +169,7 @@ namespace Net
         return socket_;
     }
 
-    Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error> TcpReqServer::Client::SendRequest(const Stdlib::ByteArray<u8>& request)
+    Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error> TcpReqServer::Client::SendRequest(u32 type, const Stdlib::ByteArray<u8>& request)
     {
         if (socket_.Get() == nullptr || socket_->GetFd() < 0)
             return Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error>(STDLIB_ERROR(1, "client", "no open socket"));
@@ -175,6 +177,8 @@ namespace Net
         RequestHeader request_header;
         request_header.protocol_version_ = Stdlib::ByteOrder::HtonU32(kProtocolVersion);
         request_header.payload_length_ = Stdlib::ByteOrder::HtonU32(request.GetSize());
+        request_header.type_ = Stdlib::ByteOrder::HtonU32(type);
+
         auto result = socket_->Write(&request_header, sizeof(request_header));
         if (result.Error())
             return Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error>(result.Error());

@@ -22,26 +22,19 @@ namespace IO
     class CoEpoll
     {
     public:
-        CoEpoll()
-            : stopping_(false)
-        {
-        }
-
-        virtual ~CoEpoll()
-        {
-            Close();
-        }
+        CoEpoll();
+        virtual ~CoEpoll();
 
         Stdlib::Error Create();
         void Close();
 
-        Stdlib::Error Add(int fd, Sync::Coroutine *co);
-        Stdlib::Error Remove(int fd, Sync::Coroutine *co);
+        Stdlib::Error Add(int fd, Sync::CoroutinePtr co);
+        Stdlib::Error Remove(int fd, Sync::CoroutinePtr co);
 
         Stdlib::Error EventLoop(bool *stopping);
 
     private:
-        using CoSetType = Stdlib::HashSet<Sync::Coroutine*, 7, &Sync::HashCoroutinePtr>;
+        using CoSetType = Stdlib::HashSet<Sync::CoroutinePtr, 7, &Sync::HashCoroutinePtr>;
         Stdlib::HashMap<int, Stdlib::SharedPtr<CoSetType>, 997, &Stdlib::HashInt> fd_co_map_;
 
         CoEpoll(const CoEpoll& other) = delete;

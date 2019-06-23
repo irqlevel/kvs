@@ -27,3 +27,5 @@ T* TAlloc(Args&&... args)
 
     return new (p) T(Stdlib::Forward<Args>(args)...);
 }
+
+long get_mem_usage();

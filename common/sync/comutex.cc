@@ -12,7 +12,7 @@ CoMutex::CoMutex()
 CoMutex::~CoMutex()
 {
     mu_lock_.Lock();
-    BUG_ON(owner_ != nullptr);
+    BUG_ON(owner_.Get() != nullptr);
     WakeupWaiters();
     mu_lock_.Unlock();
 }
@@ -20,10 +20,10 @@ CoMutex::~CoMutex()
 void CoMutex::WakeupWaiters()
 {
     while (!waiters_.IsEmpty()) {
-        auto co = CONTAINING_RECORD(waiters_.RemoveHead(), Coroutine, WaitListEntry);
-        co->WaitListEntry.Init();
-        co->Signal();
-        Sync::Coroutine::Put(co);
+        auto co_list_entry = CONTAINING_RECORD(waiters_.RemoveHead(), CoroutineListEntry, list_entry_);
+        co_list_entry->list_entry_.Init();
+        co_list_entry->co_->Signal();
+        delete co_list_entry;
     }
 }
 
@@ -35,16 +35,13 @@ void CoMutex::Lock()
 
     for (;;) {
         mu_lock_.Lock();
-        if (owner_ == nullptr) {
-            Sync::Coroutine::Get(self);
+        if (owner_.Get() == nullptr) {
             owner_ = self;
             mu_lock_.Unlock();
             return;
         } else {
-            if (self->WaitListEntry.IsEmpty()) {
-                Sync::Coroutine::Get(self);
-                waiters_.InsertTail(&self->WaitListEntry);
-            }
+            auto le = new CoroutineListEntry(self);
+            waiters_.InsertTail(&le->list_entry_);
         }
         mu_lock_.Unlock();
 
@@ -59,11 +56,10 @@ void CoMutex::Unlock()
     auto self = Coroutine::Self();
 
     mu_lock_.Lock();
-    BUG_ON(self != owner_);
-    owner_ = nullptr;
+    BUG_ON(self.Get() != owner_.Get());
+    owner_.Reset(nullptr);
     WakeupWaiters();
     mu_lock_.Unlock();
-    Sync::Coroutine::Put(self);
 }
 
 }

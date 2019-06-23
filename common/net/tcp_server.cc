@@ -55,7 +55,7 @@ void TcpServer::ConnCoRoutine(void *arg)
     TcpServer::Connection *conn = static_cast<TcpServer::Connection *>(arg);
     auto co = Sync::Coroutine::Self();
 
-    Trace(ServerLL, "here co 0x%p\n", co);
+    Trace(ServerLL, "co %p\n", co.Get());
 
     conn->GetServer().ConnectionCoHandler(conn);
 
@@ -63,6 +63,8 @@ void TcpServer::ConnCoRoutine(void *arg)
     conn->GetEpoll().Remove(conn->GetSocket()->GetFd(), co);
 
     delete conn;
+
+    Trace(ServerLL, "co %p ref %ld done\n", co.Get(), co->GetRefCounter());
 }
 
 TcpServer::TcpServer()
@@ -88,24 +90,26 @@ void TcpServer::Thread::DumpStats()
 void* TcpServer::Thread::Worker()
 {
     Stdlib::Error err;
-    Sync::Coroutine *co;
+    Sync::CoroutinePtr co;
 
     err = Sync::Coroutine::Init();
     if (err)
         goto out;
 
     co = Sync::Coroutine::New(&TcpServer::ListenCoRoutine, this);
-    if (co == nullptr) {
+    if (co.Get() == nullptr) {
         err = STDLIB_ERRNO_ERROR(ENOMEM);
         goto fail;
     }
 
     if (epoll_.Add(listen_socket_->GetFd(), co)) {
         Trace(ServerLL, "cant add listen sock fd\n");
+        co.Reset();
         err = STDLIB_ERRNO_ERROR(ENOMEM);
-        Sync::Coroutine::Put(co);
         goto fail;
     }
+    Trace(ServerLL, "co %p ref %ld\n", co.Get(), co->GetRefCounter());
+    co.Reset();
 
     err = epoll_.EventLoop(&server_.stopping_);
     if (err)
@@ -131,7 +135,7 @@ void TcpServer::ListenCoRoutine(void *arg)
 {
     TcpServer::Thread* thread = static_cast<TcpServer::Thread*>(arg);
 
-    Trace(ServerLL, "here\n");
+    Trace(ServerLL, "listen\n");
 
     for (;;) {
         Trace(ServerLL, "accepting\n");
@@ -166,7 +170,7 @@ void TcpServer::ListenCoRoutine(void *arg)
         err = thread->GetEpoll().Add(co->GetSignalFd(), co);
         if (err) {
             Trace(ServerLL, "can't add co signal fd %d err %d\n", co->GetSignalFd(), err);
-            Sync::Coroutine::Put(co);
+            co.Reset();
             delete conn;
             Sync::Coroutine::Yield();
             continue;
@@ -176,16 +180,19 @@ void TcpServer::ListenCoRoutine(void *arg)
         if (err) {
             Trace(ServerLL, "can't add conn socket fd %d err %d\n", conn->GetSocket()->GetFd(), err);
             thread->GetEpoll().Remove(co->GetSignalFd(), co);
-            Sync::Coroutine::Put(co);
+            co.Reset();
             delete conn;
             Sync::Coroutine::Yield();
             continue;
         }
 
+        co.Reset();
         Sync::Coroutine::Yield();
     }
 
     thread->GetEpoll().Remove(thread->listen_socket_->GetFd(), Sync::Coroutine::Self());
+
+    Trace(ServerLL, "listen done\n");
 }
 
 bool TcpServer::Thread::Start()
@@ -317,7 +324,7 @@ void TcpServer::Shutdown()
         stopping_ = true;
 
         for (size_t i = 0; i < threads_.GetSize(); i++) {
-            auto& t= threads_[i];
+            auto& t = threads_[i];
             t->Kill(Sync::Signal::kSIGTERM);
         }
     }

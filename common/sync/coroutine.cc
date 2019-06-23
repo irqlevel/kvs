@@ -44,9 +44,6 @@ struct CoroutineUContext final
         if (Magic != Magic1)
             abort();
 
-        if (!Base.WaitListEntry.IsEmpty())
-            abort();
-
         Magic = 0;
         if (Stack != nullptr)
             FreeStack(Stack, StackSize);
@@ -84,6 +81,11 @@ struct CoroutineUContext final
     int Magic;
 };
 
+size_t HashCoroutinePtr(CoroutinePtr const& value)
+{
+    return Stdlib::HashPtr(value.Get());
+}
+
 size_t HashCoroutinePtr(Coroutine* const& value)
 {
     return Stdlib::HashPtr(value);
@@ -91,12 +93,11 @@ size_t HashCoroutinePtr(Coroutine* const& value)
 
 static __thread CoroutineUContext* Leader;
 static __thread Coroutine* Current;
-static __thread Stdlib::HashSet<Coroutine*, 997, &HashCoroutinePtr>* CoSet;
 
 Coroutine::Coroutine()
     : _Routine(nullptr)
     , _RoutineArg(nullptr)
-    , _Caller(nullptr)
+    , _Caller()
 {
     Trace(CoLL, "co %p ctor\n", this);
 }
@@ -123,22 +124,22 @@ void CoroutineUContext::Trampoline(int i0, int i1)
     }
 }
 
-Coroutine* Coroutine::New(CoroutineRoutine routine, void* routineArg)
+CoroutinePtr Coroutine::New(CoroutineRoutine routine, void* routineArg)
 {
     CoroutineUContext* ctx = new CoroutineUContext();
     if (ctx == nullptr)
-        return nullptr;
+        return CoroutinePtr();
 
     if (ctx->Stack == nullptr) {
         delete ctx;
-        return nullptr;
+        return CoroutinePtr();
     }
 
     Coroutine* co = &ctx->Base;
     int err = co->_Eventfd.Create(0, Eventfd::kNONBLOCK|Eventfd::kCLOEXEC);
     if (err) {
         delete ctx;
-        return nullptr;
+        return CoroutinePtr();
     }
 
     co->_Routine = routine;
@@ -151,12 +152,7 @@ Coroutine* Coroutine::New(CoroutineRoutine routine, void* routineArg)
 
     if (getcontext(&uc) == -1) {
         delete ctx;
-        return nullptr;
-    }
-
-    if (!CoSet->Add(co)) {
-        delete ctx;
-        return nullptr;
+        return CoroutinePtr();
     }
 
     co->_TrampolineArg = &oldEnv;
@@ -176,44 +172,57 @@ Coroutine* Coroutine::New(CoroutineRoutine routine, void* routineArg)
         swapcontext(&oldUc, &uc);
     }
 
-    return co;
+    auto result = CoroutinePtr(co);
+    co->DecRefCounter();
+    return result;
 }
 
 Coroutine::~Coroutine()
 {
     Trace(CoLL, "co %p dtor\n", this);
-    CoSet->Remove(this);
 }
 
-void Coroutine::RunAll()
+void Coroutine::IncRefCounter()
 {
-    for (auto it = CoSet->Begin(); it != CoSet->End(); it++)
-        (*it)->Enter();
-}
-
-void Coroutine::Get(Coroutine* co)
-{
-    CoroutineUContext* ctx = CONTAINING_RECORD(co, CoroutineUContext, Base);
+    CoroutineUContext* ctx = CONTAINING_RECORD(this, CoroutineUContext, Base);
     if (ctx->Magic != CoroutineUContext::Magic1)
         abort();
 
     ctx->RefCount.Inc();
+
+    Trace(CoLL, "co %p ref %ld\n", this, ctx->RefCount.Get());
 }
 
-void Coroutine::Put(Coroutine* co)
+long Coroutine::DecRefCounter()
 {
-    CoroutineUContext* ctx = CONTAINING_RECORD(co, CoroutineUContext, Base);
+    CoroutineUContext* ctx = CONTAINING_RECORD(this, CoroutineUContext, Base);
     if (ctx->Magic != CoroutineUContext::Magic1)
         abort();
 
-    if (ctx->RefCount.Dec() == 0)
+    long result = ctx->RefCount.Dec();
+
+    Trace(CoLL, "co %p ref %ld\n", this, ctx->RefCount.Get());
+
+    if (result == 0) {
         delete ctx;
+    }
+
+    return result;
+}
+
+long Coroutine::GetRefCounter()
+{
+    CoroutineUContext* ctx = CONTAINING_RECORD(this, CoroutineUContext, Base);
+    if (ctx->Magic != CoroutineUContext::Magic1)
+        abort();
+
+    return ctx->RefCount.Get();
 }
 
 void Coroutine::Enter()
 {
     assert(_Caller == nullptr); //coroutine re-entered recursively
-    Coroutine* self = Self();
+    Coroutine* self = Self().Get();
     _Caller = self;
     Trace(CoLL, "co enter this %p caller %p\n", this, _Caller);
     Swap(self, this, COROUTINE_ENTER);
@@ -221,6 +230,8 @@ void Coroutine::Enter()
 
 int Coroutine::Switch(Coroutine* coFrom, Coroutine* coTo, int action)
 {
+    Trace(CoLL, "co switch %p -> %p\n", coFrom, coTo);
+
     CoroutineUContext* ctxFrom = CONTAINING_RECORD(coFrom, CoroutineUContext, Base);
     if (ctxFrom->Magic != CoroutineUContext::Magic1)
         abort();
@@ -246,7 +257,6 @@ void Coroutine::Swap(Coroutine* from, Coroutine* to, int action)
     case COROUTINE_YIELD:
         return;
     case COROUTINE_TERMINATE:
-        Coroutine::Put(to);
         return;
     default:
         abort();
@@ -258,7 +268,7 @@ void Coroutine::Yield()
     if (!InCoroutine())
         abort();
 
-    Coroutine* self = Self();
+    auto self = Self().Get();
     Coroutine* to = self->_Caller;
     Trace(CoLL, "co yield self %p to %p\n", self, to);
     assert(to != nullptr); //coroutine is yielding to no one
@@ -269,43 +279,41 @@ void Coroutine::Yield()
 Stdlib::Error Coroutine::Init()
 {
     Trace(CoLL, "co init\n");
-    CoSet = new Stdlib::HashSet<Coroutine*, 997, &HashCoroutinePtr>;
-    if (CoSet == nullptr)
-        return STDLIB_ERRNO_ERROR(ENOMEM);
 
     Leader = new CoroutineUContext();
     if (Leader == nullptr) {
-        delete CoSet;
         return STDLIB_ERRNO_ERROR(ENOMEM);
     }
     if (Leader->Stack == nullptr) {
-        delete Leader;
-        delete CoSet;
+        Leader->Base.DecRefCounter();
         return STDLIB_ERRNO_ERROR(ENOMEM);
     }
+    Trace(CoLL, "co init leader %p\n", &Leader->Base);
+
     Current = nullptr;
     return 0;
 }
 
 void Coroutine::Deinit()
 {
-    delete Leader;
-    for (auto it = CoSet->Begin(); it != CoSet->End(); it++) {
-        CoroutineUContext* ctx = CONTAINING_RECORD(*it, CoroutineUContext, Base);
-        if (ctx->Magic != CoroutineUContext::Magic1)
-            abort();
-    }
-    delete CoSet;
+    Trace(CoLL, "co deinit leader %p\n", &Leader->Base);
+    Leader->Base.DecRefCounter();
     Current = nullptr;
+
     Trace(CoLL, "co deinit\n");
 }
 
-Coroutine* Coroutine::Self()
+Coroutine* Coroutine::RawSelf()
 {
     if (Current == nullptr)
         Current = &Leader->Base;
 
     return Current;
+}
+
+CoroutinePtr Coroutine::Self()
+{
+    return RawSelf();
 }
 
 bool Coroutine::InCoroutine()

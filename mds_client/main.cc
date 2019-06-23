@@ -2,6 +2,7 @@
 #include <common/sync/process.h>
 #include <common/stdlib/trace.h>
 #include <common/io/random.h>
+#include <mds/server.h>
 
 struct ClientContext {
     const char *address_;
@@ -35,7 +36,7 @@ void clientCoRoutine(void *arg)
 
     size_t buf_size;
     rng.GetRandomBytes(&buf_size, sizeof(buf_size));
-    buf_size = 100 + buf_size % 30000;
+    buf_size = 10000 + buf_size % 30000;
 
     if (!request.ReserveAndUse(buf_size)) {
         Trace(0, "no memory\n");
@@ -43,7 +44,7 @@ void clientCoRoutine(void *arg)
     }
     rng.GetRandomBytes(request.GetBuf(), request.GetSize());
 
-    auto result = client->SendRequest(request);
+    auto result = client->SendRequest(Mds::Server::kEchoRequestType, request);
     if (result.Error()) {
         Trace(0, "send req error %d\n", result.Error().Code());
         Sync::Process::Exit(1);
@@ -64,8 +65,7 @@ void clientCoRoutine(void *arg)
     context->epoll_.Remove(client->GetSocket()->GetFd(), co);
     context->epoll_.Remove(co->GetSignalFd(), co);
 
-    context->running_count_.Dec();
-    if (context->running_count_.Get() == 0)
+    if (context->running_count_.Dec() == 0)
         context->stopping_ = true;
 }
 
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
             Sync::Process::Exit(1);
         }
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 10000; i++) {
             context.running_count_.Inc();
             auto co = Sync::Coroutine::New(clientCoRoutine, &context);
             if (co == nullptr) {
