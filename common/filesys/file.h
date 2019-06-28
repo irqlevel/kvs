@@ -12,9 +12,15 @@ namespace FileSys
 class File : public IO::ReadWriteCloser
 {
 public:
+
+    static const int kReadOnly = 0x1;
+    static const int kDirect = 0x2;
+    static const int kSync = 0x4;
+    static const int KReadWrite = 0x8;
+
     File();
-    Stdlib::Error Open(const char *path);
-    Stdlib::Error Open(const Stdlib::String& path);
+    Stdlib::Error Open(const char *path, int flags = kReadOnly);
+    Stdlib::Error Open(const Stdlib::String& path, int flags = kReadOnly);
     virtual ~File();
     virtual Stdlib::Result<size_t, Stdlib::Error> Read(void* buf, size_t nbytes) override;
     virtual Stdlib::Result<size_t, Stdlib::Error> Write(const void *buf, size_t nbytes) override;

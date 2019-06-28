@@ -103,6 +103,16 @@ const char* Error::GetFunc() const
     return func_;
 }
 
+const char* Error::GetMessage() const
+{
+    return message_;
+}
+
+const char* Error::GetSubsystem() const
+{
+    return subsystem_;
+}
+
 Error::Error(const Error& other)
     : Error()
 {

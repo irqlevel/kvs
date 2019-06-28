@@ -134,6 +134,10 @@ public:
 
         node->Key = key;
         node->Value = value;
+        if (node->Key != key || node->Value != value) {
+            delete node;
+            return false;
+        }
 
         bucket.NodeList.InsertTail(&node->Link);
         return true;

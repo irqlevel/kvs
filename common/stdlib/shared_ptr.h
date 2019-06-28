@@ -226,6 +226,17 @@ public:
         Reset(nullptr);
     }
 
+    bool operator==(const SharedPtr& other) const {
+        if (Get() == other.Get())
+            return true;
+
+        return false;
+    }
+
+    bool operator!=(const SharedPtr& other) const {
+        return !(this->operator==(other));
+    }
+
 private:
     ObjectReference<T, Deleter>* object_ref_;
 };

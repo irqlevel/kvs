@@ -1,0 +1,75 @@
+syntax = "proto2";
+
+enum request_type {
+    echo = 1;
+    add_disk = 2;
+    stat_disk = 3;
+    write_disk = 4;
+    read_disk = 5;
+}
+
+message request_header {
+    required string request_id = 1;
+}
+
+message response_header {
+    required string request_id = 1;
+    required string error = 2;
+}
+
+message echo_request {
+    required request_header header = 1;
+    required bytes data = 2;
+}
+
+message echo_response {
+    required response_header header = 1;
+    required bytes data = 2;
+}
+
+message add_disk_request {
+    required request_header header = 1;
+    required string name = 2;
+    required int64 block_size = 3;
+}
+
+message add_disk_response {
+    required response_header header = 1;
+    required string disk_id = 2;
+}
+
+message stat_disk_request {
+    required request_header header = 1;
+    required string disk_id = 2;
+}
+
+message stat_disk_response {
+    required response_header header = 1;
+    required string name = 2;
+    required int64 size = 3;
+    required int64 block_size = 4;
+}
+
+message write_disk_request {
+    required request_header header = 1;
+    required string disk_id = 2;
+    required int64 offset = 3;
+    required bytes data = 4;
+}
+
+message write_disk_response {
+    required response_header header = 1;
+    required int64 bytes_written = 2;
+}
+
+message read_disk_request {
+    required request_header header = 1;
+    required string disk_id = 2;
+    required int64 offset = 3;
+}
+
+message read_disk_response {
+    required response_header header = 1;
+    required int64 bytes_read = 2;
+    required bytes data = 3;
+}

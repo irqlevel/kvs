@@ -6,6 +6,7 @@ LIBNAME=pb
 
 all:
 	$(CPP) -c $(COMMON_CFLAGS) $(EXTRA_CFLAGS) $(SOURCES) -lpthread
+	rm -f $(LIBNAME).a
 	$(AR) -cvq $(LIBNAME).a *.o
 	cp $(LIBNAME).a $(LIB)/$(LIBNAME).a
 

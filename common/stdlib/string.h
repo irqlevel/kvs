@@ -231,6 +231,10 @@ namespace Stdlib
             return true;
         }
 
+        bool operator!=(const String &other) {
+            return !(this->operator==(other));
+        }
+
         String(const String& other)
             : String()
         {
@@ -283,6 +287,19 @@ namespace Stdlib
         Result<ulong, Stdlib::Error> ToUlong(int base = 10)
         {
             return Str2Ulong(GetConstBuf(), base);
+        }
+
+        bool EncodeToHex(void *buf, size_t buf_size)
+        {
+            if (!ReserveAndUse(2 * buf_size + 1))
+                return false;
+
+            for (size_t i = 0; i < buf_size; i++) {
+                auto c = *(static_cast<const char *>(buf) + i);
+                SnPrintf(Arr + 2 * i, 2, "%02x", c);
+            }
+
+            return true;
         }
 
     private:

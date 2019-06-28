@@ -30,6 +30,10 @@ public:
 
     const char* GetFunc() const;
 
+    const char* GetMessage() const;
+
+    const char* GetSubsystem() const;
+
     int GetLine() const;
 
     Error(const Error& other);

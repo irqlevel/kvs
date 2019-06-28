@@ -140,9 +140,6 @@ public:
     }
 
     bool operator==(const IntrusivePtr& other) const {
-        if (this == &other)
-            return true;
-
         if (object_ == other.object_)
             return true;
 

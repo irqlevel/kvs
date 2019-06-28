@@ -36,7 +36,7 @@ namespace IO
             if (!coset->Add(co))
                 return STDLIB_ERRNO_ERROR(ENOMEM);
 
-            if (!fd_co_map_.Insert(fd, coset)) {
+            if (!fd_co_map_.Insert(Stdlib::Move(fd), Stdlib::Move(coset))) {
                 return STDLIB_ERRNO_ERROR(ENOMEM);
             }
 

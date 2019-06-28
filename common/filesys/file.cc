@@ -16,17 +16,28 @@ File::File()
 {
 }
 
-Stdlib::Error File::Open(const char* path)
+Stdlib::Error File::Open(const char* path, int flags)
 {
-    fd_ = ::open(path, O_RDONLY, 0666);
+    int oflags = 0;
+
+    if (flags & kReadOnly)
+        oflags |= O_RDONLY;
+    if (flags & kDirect)
+        oflags |= O_DIRECT;
+    if (flags & kSync)
+        oflags |= O_SYNC;
+    if (flags & KReadWrite)
+        oflags |= O_RDWR;
+
+    fd_ = ::open(path, oflags, 0666);
     if (fd_ < 0)
         return STDLIB_ERRNO_ERROR(Stdlib::Errno::Get());
     return 0;
 }
 
-Stdlib::Error File::Open(const Stdlib::String &path)
+Stdlib::Error File::Open(const Stdlib::String &path, int flags)
 {
-    return Open(path.GetConstBuf());
+    return Open(path.GetConstBuf(), flags);
 }
 
 File::~File()

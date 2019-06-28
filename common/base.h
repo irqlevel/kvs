@@ -12,11 +12,22 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
 
+typedef char s8;
+typedef short s16;
+typedef int s32;
+typedef long long s64;
+
 static_assert(sizeof(char) == 1, "invalid size");
+
 static_assert(sizeof(u8) == 1, "invalid size");
 static_assert(sizeof(u16) == 2, "invalid size");
 static_assert(sizeof(u32) == 4, "invalid size");
 static_assert(sizeof(u64) == 8, "invalid size");
+
+static_assert(sizeof(s8) == 1, "invalid size");
+static_assert(sizeof(s16) == 2, "invalid size");
+static_assert(sizeof(s32) == 4, "invalid size");
+static_assert(sizeof(s64) == 8, "invalid size");
 
 #define OFFSET_OF(type, field)	\
 		(unsigned long)&((type*)0)->field
