@@ -2,7 +2,9 @@
 #include <common/sync/process.h>
 #include <common/stdlib/trace.h>
 #include <common/io/random.h>
-#include <mds/server.h>
+#include <common/stdlib/unique_ptr.h>
+#include <mds/service.pb.h>
+#include <pb/client.h>
 
 struct ClientContext {
     const char *address_;
@@ -17,7 +19,7 @@ void clientCoRoutine(void *arg)
     auto co = Sync::Coroutine::Self();
     auto context = static_cast<ClientContext *>(arg);
 
-    auto client = Stdlib::MakeUnique<Net::TcpReqServer::Client>();
+    auto client = Stdlib::MakeUnique<Pb::Client>();
     auto err = client->Connect(context->address_, context->port_);
     if (err) {
         Trace(0, "connect error %d\n", err.Code());
@@ -30,34 +32,25 @@ void clientCoRoutine(void *arg)
         Sync::Process::Exit(1);
     }
 
-    Stdlib::ByteArray<u8> request;
-
-    auto rng = IO::Random();
-
-    size_t buf_size;
-    rng.GetRandomBytes(&buf_size, sizeof(buf_size));
-    buf_size = 10000 + buf_size % 30000;
-
-    if (!request.ReserveAndUse(buf_size)) {
-        Trace(0, "no memory\n");
+    auto req = Stdlib::MakeUnique<echo_request>();
+    if (req.Get() == nullptr) {
+        Trace(0, "can't alloc request\n");
         Sync::Process::Exit(1);
     }
-    rng.GetRandomBytes(request.GetBuf(), request.GetSize());
 
-    auto result = client->SendRequest(Mds::Server::kEchoRequestType, request);
+    auto rng = IO::Random();
+    rng.GetRandomBytes(req->data.bytes, sizeof(req->data.bytes));
+    req->data.size = sizeof(req->data.bytes);
+
+    auto result = client->Send<echo_request, echo_response>(request_type_echo, echo_request_fields, req, echo_response_fields);
     if (result.Error()) {
         Trace(0, "send req error %d\n", result.Error().Code());
         Sync::Process::Exit(1);
     }
 
-    auto& response = result.Value();
+    auto& resp = result.Value();
 
-    if (request.GetSize() != response.GetSize()) {
-        Trace(0, "invalid response size\n");
-        Sync::Process::Exit(1);
-    }
-
-    if (Stdlib::MemCmp(request.GetConstBuf(), response.GetConstBuf(), request.GetSize()) != 0) {
+    if (Stdlib::MemCmp(req->data.bytes, resp->data.bytes, req->data.size) != 0) {
         Trace(0, "invalid response content\n");
         Sync::Process::Exit(1);
     }

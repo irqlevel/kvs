@@ -1,7 +1,7 @@
 export ROOTDIR=$(CURDIR)
 export ARCH_BITS=$(shell getconf LONG_BIT)
 
-SOURCE_DIRS = common mds mds_client
+SOURCE_DIRS = common pb mds mds_client
 BUILD_DIRS = bin lib
 
 SOURCE_DIRS_CLEAN = $(addsuffix .clean,$(SOURCE_DIRS))
@@ -37,6 +37,8 @@ $(BUILD_DIRS_CLEAN): %.clean:
 
 common: $(BUILD_DIRS)
 
-mds: common $(BUILD_DIRS)
+pb: $(BUILD_DIRS)
 
-mds_client: common mds $(BUILD_DIRS)
+mds: common pb $(BUILD_DIRS)
+
+mds_client: common pb mds $(BUILD_DIRS)

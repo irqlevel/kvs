@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+enum request_type {
+    echo = 1;
+}
+
+message echo_request {
+    required bytes data = 1;
+}
+
+message echo_response {
+    required bytes data = 1;
+}

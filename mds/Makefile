@@ -1,10 +1,11 @@
 include $(ROOTDIR)/Makefile.inc
 
-SOURCES=main.cc server.cc
+SOURCES=main.cc server.cc service.pb.c
 BINARY=mds
 
 all:
-	$(CPP) $(COMMON_CFLAGS) $(EXTRA_CFLAGS) $(SOURCES) $(LIB)/common.a -o $(BINARY) -lpthread
+	protoc --nanopb_out=-I.:. ./service.proto --proto_path .
+	$(CPP) -I../pb $(COMMON_CFLAGS) $(EXTRA_CFLAGS) $(SOURCES) $(LIB)/common.a $(LIB)/pb.a -o $(BINARY) -lpthread
 	cp $(BINARY) $(BIN)/$(BINARY)
 	rm -f $(BINARY)
 
