@@ -94,6 +94,9 @@ namespace Lbs
 
     Stdlib::Error Server::ReadDiskInternal(Stdlib::UniquePtr<read_disk_request> &req, Stdlib::UniquePtr<read_disk_response> &resp)
     {
+        if (req->size > static_cast<s64>(sizeof(resp->data.bytes)))
+            return MakeErrorResponse(LbsErrInvalidRequest, resp->header);
+
         Stdlib::String disk_id;
         if (!disk_id.Append(req->disk_id, Stdlib::StrLen(req->disk_id)))
             return MakeErrorResponse(LbsErrInvalidRequest, resp->header);
@@ -103,11 +106,11 @@ namespace Lbs
             return MakeErrorResponse(result.Error(), resp->header);
 
         auto disk = result.Value();
-        auto result2 = disk->Read(req->offset, resp->data.bytes, Stdlib::ArraySize(resp->data.bytes));
+        auto result2 = disk->Read(req->offset, resp->data.bytes, req->size);
         if (result2.Error())
             return MakeErrorResponse(result2.Error(), resp->header);
 
-        resp->bytes_read = resp->data.size = result2.Value();
+        resp->data.size = result2.Value();
         return 0;
     }
 

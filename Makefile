@@ -1,7 +1,7 @@
 export ROOTDIR=$(CURDIR)
 export ARCH_BITS=$(shell getconf LONG_BIT)
 
-SOURCE_DIRS = common pb lbs mds mds_client
+SOURCE_DIRS = common pb lbs lbs_client mds mds_client
 BUILD_DIRS = bin lib
 
 SOURCE_DIRS_CLEAN = $(addsuffix .clean,$(SOURCE_DIRS))
@@ -41,6 +41,8 @@ pb: common $(BUILD_DIRS)
 
 lbs: common pb $(BUILD_DIRS)
 
-mds: common pb lbs $(BUILD_DIRS)
+lbs_client: common pb lbs $(BUILD_DIRS)
 
-mds_client: common pb lbs mds $(BUILD_DIRS)
+mds: common pb lbs lbs_client $(BUILD_DIRS)
+
+mds_client: common pb lbs lbs_client mds $(BUILD_DIRS)

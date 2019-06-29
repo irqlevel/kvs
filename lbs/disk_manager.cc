@@ -4,6 +4,7 @@
 #include <common/io/random.h>
 #include <common/io/aio.h>
 #include <common/sync/coroutine.h>
+#include <common/malloc/mmap.h>
 
 namespace Lbs
 {
@@ -23,9 +24,11 @@ namespace Lbs
         if (!_disk_id.CopyFrom(disk_id))
             return LbsErrNoMemory;
 
-        auto err = _file.Open(name, FileSys::File::kDirect|FileSys::File::kSync|FileSys::File::KReadWrite);
-        if (err)
+        auto err = _file.Open(name, FileSys::File::KReadWrite|FileSys::File::kDirect|FileSys::File::kSync);
+        if (err) {
+            Trace(0, "can't open file %s\n", name.GetConstBuf());
             return err;
+        }
 
         _size = size;
         _block_size = block_size;
@@ -35,12 +38,19 @@ namespace Lbs
     Stdlib::Result<size_t, Stdlib::Error> Disk::Write(s64 offset, void *data, size_t data_size)
     {
         IO::AioContext aio;
+        Memory::Mmap mmap;
 
         auto err = aio.Setup();
         if (err)
             return Stdlib::Result<size_t, Stdlib::Error>(err);
 
-        err = aio.Submit(_file.GetFd(), offset, data, data_size, Sync::Coroutine::Self()->GetSignalFd(), IO::AioContext::kWrite|IO::AioContext::kEventfd);
+        err = mmap.Map(Stdlib::SizeInPages(data_size));
+        if (err)
+            return Stdlib::Result<size_t, Stdlib::Error>(err);
+
+        Stdlib::MemCpy(mmap.GetBuf(), data, data_size);
+
+        err = aio.Submit(_file.GetFd(), offset, mmap.GetBuf(), data_size, Sync::Coroutine::Self()->GetSignalFd(), IO::AioContext::kWrite|IO::AioContext::kEventfd);
         if (err)
             return Stdlib::Result<size_t, Stdlib::Error>(err);
 
@@ -52,20 +62,30 @@ namespace Lbs
                     continue;
                 }
                 return Stdlib::Result<size_t, Stdlib::Error>(result.Error());
-            } else
-                return Stdlib::Result<size_t, Stdlib::Error>(result.Value(), 0);             
+            } else {
+                s64 bytes_written = result.Value();
+                if (bytes_written < 0)
+                    return Stdlib::Result<size_t, Stdlib::Error>(STDLIB_ERRNO_ERROR(bytes_written));
+
+                return Stdlib::Result<size_t, Stdlib::Error>(bytes_written, 0);
+            }           
         }
     }
 
     Stdlib::Result<size_t, Stdlib::Error> Disk::Read(s64 offset, void *data, size_t data_size)
     {
         IO::AioContext aio;
+        Memory::Mmap mmap;
 
         auto err = aio.Setup();
         if (err)
             return Stdlib::Result<size_t, Stdlib::Error>(err);
 
-        err = aio.Submit(_file.GetFd(), offset, data, data_size, Sync::Coroutine::Self()->GetSignalFd(), IO::AioContext::kEventfd);
+        err = mmap.Map(Stdlib::SizeInPages(data_size));
+        if (err)
+            return Stdlib::Result<size_t, Stdlib::Error>(err);
+
+        err = aio.Submit(_file.GetFd(), offset, mmap.GetBuf(), data_size, Sync::Coroutine::Self()->GetSignalFd(), IO::AioContext::kEventfd);
         if (err)
             return Stdlib::Result<size_t, Stdlib::Error>(err);
 
@@ -77,8 +97,14 @@ namespace Lbs
                     continue;
                 }
                 return Stdlib::Result<size_t, Stdlib::Error>(result.Error());
-            } else
-                return Stdlib::Result<size_t, Stdlib::Error>(result.Value(), 0);             
+            } else {
+                s64 bytes_read = result.Value();
+                if (bytes_read < 0)
+                    return Stdlib::Result<size_t, Stdlib::Error>(STDLIB_ERRNO_ERROR(bytes_read));
+
+                Stdlib::MemCpy(data, mmap.GetBuf(), bytes_read);
+                return Stdlib::Result<size_t, Stdlib::Error>(bytes_read, 0);
+            }         
         }
     }
 
@@ -131,12 +157,16 @@ namespace Lbs
         }
         _disk_map_lock.Unlock();
 
+        Trace(0, "added disk %s\n", disk->GetDiskId().GetConstBuf());
+
         return Stdlib::Result<Stdlib::String, Stdlib::Error>(Stdlib::Move(disk_id_result.MutValue()), 0);
     }
 
     Stdlib::Result<DiskPtr, Stdlib::Error> DiskManager::LookupDisk(const Stdlib::String& disk_id)
     {
         DiskPtr disk;
+
+        Trace(0, "lookup disk %s\n", disk_id.GetConstBuf());
 
         _disk_map_lock.ReadLock();
         auto it = _disk_map.Lookup(disk_id);
@@ -153,7 +183,7 @@ namespace Lbs
     Stdlib::Result<Stdlib::String, Stdlib::Error> DiskManager::GenerateDiskId()
     {
         Stdlib::String result;
-        u8 bytes[32];
+        u8 bytes[8];
 
         auto rng = IO::Random();
         rng.GetRandomBytes(bytes, sizeof(bytes));

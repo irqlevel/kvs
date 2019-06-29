@@ -291,12 +291,12 @@ namespace Stdlib
 
         bool EncodeToHex(void *buf, size_t buf_size)
         {
-            if (!ReserveAndUse(2 * buf_size + 1))
+            if (!ReserveAndUse(2 * buf_size))
                 return false;
 
             for (size_t i = 0; i < buf_size; i++) {
                 auto c = *(static_cast<const char *>(buf) + i);
-                SnPrintf(Arr + 2 * i, 2, "%02x", c);
+                SnPrintf(Arr + 2 * i, 3, "%02x", c);
             }
 
             return true;

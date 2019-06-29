@@ -66,10 +66,10 @@ message read_disk_request {
     required request_header header = 1;
     required string disk_id = 2;
     required int64 offset = 3;
+    required int64 size = 4;
 }
 
 message read_disk_response {
     required response_header header = 1;
-    required int64 bytes_read = 2;
     required bytes data = 3;
 }
