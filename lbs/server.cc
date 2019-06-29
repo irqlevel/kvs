@@ -126,6 +126,7 @@ namespace Lbs
     void Server::Shutdown()
     {
         Pb::Server::Shutdown();
+        _disk_manager.Shutdown();
     }
 
     void Server::OnStopSignal(int signo)

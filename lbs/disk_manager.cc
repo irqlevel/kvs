@@ -26,7 +26,7 @@ namespace Lbs
 
         auto err = _file.Open(name, FileSys::File::KReadWrite|FileSys::File::kDirect|FileSys::File::kSync);
         if (err) {
-            Trace(0, "can't open file %s\n", name.GetConstBuf());
+            //Trace(0, "can't open file %s\n", name.GetConstBuf());
             return err;
         }
 
@@ -58,6 +58,7 @@ namespace Lbs
             auto result = aio.Wait();
             if (result.Error()) {
                 if (result.Error() == STDLIB_ERRNO_ERROR(EAGAIN) || result.Error() == STDLIB_ERRNO_ERROR(EINTR)) {
+                    //Trace(0, "yield\n");
                     Sync::Coroutine::Yield();
                     continue;
                 }
@@ -93,6 +94,7 @@ namespace Lbs
             auto result = aio.Wait();
             if (result.Error()) {
                 if (result.Error() == STDLIB_ERRNO_ERROR(EAGAIN) || result.Error() == STDLIB_ERRNO_ERROR(EINTR)) {
+                    //Trace(0, "yield\n");
                     Sync::Coroutine::Yield();
                     continue;
                 }
@@ -157,7 +159,7 @@ namespace Lbs
         }
         _disk_map_lock.Unlock();
 
-        Trace(0, "added disk %s\n", disk->GetDiskId().GetConstBuf());
+        //Trace(0, "added disk %s\n", disk->GetDiskId().GetConstBuf());
 
         return Stdlib::Result<Stdlib::String, Stdlib::Error>(Stdlib::Move(disk_id_result.MutValue()), 0);
     }
@@ -166,7 +168,7 @@ namespace Lbs
     {
         DiskPtr disk;
 
-        Trace(0, "lookup disk %s\n", disk_id.GetConstBuf());
+        //Trace(0, "lookup disk %s\n", disk_id.GetConstBuf());
 
         _disk_map_lock.ReadLock();
         auto it = _disk_map.Lookup(disk_id);
@@ -194,4 +196,8 @@ namespace Lbs
         return Stdlib::Result<Stdlib::String, Stdlib::Error>(Stdlib::Move(result), 0);
     }
 
+    void DiskManager::Shutdown()
+    {
+        _disk_map.Clear();
+    }
 }

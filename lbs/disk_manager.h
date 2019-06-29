@@ -51,6 +51,8 @@ namespace Lbs
 
         Stdlib::Result<DiskPtr, Stdlib::Error> LookupDisk(const Stdlib::String& disk_id);
 
+        void Shutdown();
+
     private:
 
         Stdlib::Result<Stdlib::String, Stdlib::Error> GenerateDiskId();

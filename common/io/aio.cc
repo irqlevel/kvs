@@ -85,7 +85,7 @@ namespace IO
         if (r == 0)
             return Stdlib::Result<s64, Stdlib::Error>(STDLIB_ERRNO_ERROR(EAGAIN));
 
-        Trace(0, "res %lld res2 %lld\n", events[0].res, events[0].res2); 
+        //Trace(0, "res %lld res2 %lld\n", events[0].res, events[0].res2); 
         return Stdlib::Result<s64, Stdlib::Error>(events[0].res, 0);
     }
 

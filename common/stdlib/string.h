@@ -295,7 +295,7 @@ namespace Stdlib
                 return false;
 
             for (size_t i = 0; i < buf_size; i++) {
-                auto c = *(static_cast<const char *>(buf) + i);
+                unsigned char c = *(static_cast<const unsigned char *>(buf) + i);
                 SnPrintf(Arr + 2 * i, 3, "%02x", c);
             }
 
