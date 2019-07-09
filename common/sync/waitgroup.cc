@@ -1,5 +1,4 @@
 #include "waitgroup.h"
-#include <assert.h>
 
 namespace Sync
 {
@@ -15,10 +14,8 @@ WaitGroup::~WaitGroup()
 
 void WaitGroup::Add(long delta)
 {
-    assert(delta > 0);
-    auto value = counter_.Add(delta);
-    (void)value;
-    assert(value >= delta);
+    BUG_ON(delta <= 0);
+    counter_.Add(delta);
 }
 
 bool WaitGroup::IsDone()
@@ -35,7 +32,7 @@ bool WaitGroup::IsDone(void *ctx)
 void WaitGroup::Done()
 {
     auto value = counter_.Dec();
-    assert(value >= 0);
+    BUG_ON(value < 0);
     if (value == 0) {
         //signal all threads blocked inside Wait()
         cond_wait_.Broadcast(lock_);

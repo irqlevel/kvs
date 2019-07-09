@@ -1,5 +1,4 @@
 #include "thread.h"
-#include <assert.h>
 #include <stdio.h>
 #include <sys/sysinfo.h>
 #include <sys/syscall.h>
@@ -42,7 +41,9 @@ void* Thread::Join()
     void* result = nullptr;
 
     if (running_.CmpXchg(1, 0) == 1) {
-        assert(pthread_join(thread_, &result) == 0);
+        auto ret = pthread_join(thread_, &result);
+        if (ret)
+            BUG_ON(1);
     }
 
     return result;

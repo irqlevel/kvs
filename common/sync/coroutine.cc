@@ -7,7 +7,6 @@
 #include <common/stdlib/hash_set.h>
 #include <common/stdlib/hash.h>
 
-#include <assert.h>
 #include <setjmp.h>
 #include <memory.h>
 #include <stdlib.h>
@@ -42,7 +41,7 @@ struct CoroutineUContext final
     ~CoroutineUContext()
     {
         if (Magic != Magic1)
-            abort();
+            Stdlib::Abort();
 
         Magic = 0;
         if (Stack != nullptr)
@@ -53,16 +52,16 @@ struct CoroutineUContext final
     {
         void* stack, *guardpage;
         if (*stackSize == 0 || (*stackSize % kPageSize) != 0)
-            abort();
+            Stdlib::Abort();
 
         *stackSize += kPageSize; // one extra guard page
         stack = mmap(NULL, *stackSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (stack == MAP_FAILED)
-            abort();
+            Stdlib::Abort();
 
         guardpage = stack;
         if (mprotect(guardpage, 4096, PROT_NONE))
-            abort();
+            Stdlib::Abort();
         return stack;
     }
 
@@ -91,8 +90,8 @@ size_t HashCoroutinePtr(Coroutine* const& value)
     return Stdlib::HashPtr(value);
 }
 
-static __thread CoroutineUContext* Leader;
-static __thread Coroutine* Current;
+static thread_local CoroutineUContext* Leader;
+static thread_local Coroutine* Current;
 
 Coroutine::Coroutine()
     : _Routine(nullptr)
@@ -186,7 +185,7 @@ void Coroutine::IncRefCounter()
 {
     CoroutineUContext* ctx = CONTAINING_RECORD(this, CoroutineUContext, Base);
     if (ctx->Magic != CoroutineUContext::Magic1)
-        abort();
+        Stdlib::Abort();
 
     ctx->RefCount.Inc();
 
@@ -197,7 +196,7 @@ long Coroutine::DecRefCounter()
 {
     CoroutineUContext* ctx = CONTAINING_RECORD(this, CoroutineUContext, Base);
     if (ctx->Magic != CoroutineUContext::Magic1)
-        abort();
+        Stdlib::Abort();
 
     long result = ctx->RefCount.Dec();
 
@@ -214,14 +213,14 @@ long Coroutine::GetRefCounter()
 {
     CoroutineUContext* ctx = CONTAINING_RECORD(this, CoroutineUContext, Base);
     if (ctx->Magic != CoroutineUContext::Magic1)
-        abort();
+        Stdlib::Abort();
 
     return ctx->RefCount.Get();
 }
 
 void Coroutine::Enter()
 {
-    assert(_Caller == nullptr); //coroutine re-entered recursively
+    BUG_ON(_Caller != nullptr); //coroutine re-entered recursively
     Coroutine* self = Self().Get();
     _Caller = self;
     Trace(CoLL, "co enter this %p caller %p\n", this, _Caller);
@@ -234,11 +233,11 @@ int Coroutine::Switch(Coroutine* coFrom, Coroutine* coTo, int action)
 
     CoroutineUContext* ctxFrom = CONTAINING_RECORD(coFrom, CoroutineUContext, Base);
     if (ctxFrom->Magic != CoroutineUContext::Magic1)
-        abort();
+        Stdlib::Abort();
 
     CoroutineUContext* ctxTo = CONTAINING_RECORD(coTo, CoroutineUContext, Base);
     if (ctxTo->Magic != CoroutineUContext::Magic1)
-        abort();
+        Stdlib::Abort();
 
     Current = coTo;
     int ret = sigsetjmp(ctxFrom->Env, 0);
@@ -259,19 +258,19 @@ void Coroutine::Swap(Coroutine* from, Coroutine* to, int action)
     case COROUTINE_TERMINATE:
         return;
     default:
-        abort();
+        Stdlib::Abort();
     }
 }
 
 void Coroutine::Yield()
 {
     if (!InCoroutine())
-        abort();
+        Stdlib::Abort();
 
     auto self = Self().Get();
     Coroutine* to = self->_Caller;
     Trace(CoLL, "co yield self %p to %p\n", self, to);
-    assert(to != nullptr); //coroutine is yielding to no one
+    BUG_ON(to == nullptr); //coroutine is yielding to no one
     self->_Caller = nullptr;
     Swap(self, to, COROUTINE_YIELD);
 }

@@ -1,32 +1,41 @@
 #include "rwmutex.h"
-#include <assert.h>
 
 namespace Sync
 {
 
 RWMutex::RWMutex()
 {
-    assert(pthread_rwlock_init(&lock_, NULL) == 0);
+    auto ret = pthread_rwlock_init(&lock_, NULL);
+    if (ret)
+        BUG_ON(1);
 }
 
 RWMutex::~RWMutex()
 {
-    assert(pthread_rwlock_destroy(&lock_) == 0);
+    auto ret = pthread_rwlock_destroy(&lock_);
+    if (ret)
+        BUG_ON(1);
 }
 
 void RWMutex::Lock()
 {
-    assert(pthread_rwlock_wrlock(&lock_) == 0);
+    auto ret = pthread_rwlock_wrlock(&lock_);
+    if (ret)
+        BUG_ON(1);
 }
 
 void RWMutex::Unlock()
 {
-    assert(pthread_rwlock_unlock(&lock_) == 0);
+    auto ret = pthread_rwlock_unlock(&lock_);
+    if (ret)
+        BUG_ON(1);
 }
 
 void RWMutex::ReadLock()
 {
-    assert(pthread_rwlock_rdlock(&lock_) == 0);
+    auto ret = pthread_rwlock_rdlock(&lock_);
+    if (ret)
+        BUG_ON(1);
 }
 
 }

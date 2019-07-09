@@ -38,7 +38,7 @@ void* common_malloc(size_t size)
 
     header = static_cast<malloc_header *>(malloc(sizeof(*header) + size));
     if (header == nullptr)
-        abort();
+        ::abort();
 
     header->magic_ = MALLOC_HEADER_MAGIC;
     header->size_ = size;
@@ -58,7 +58,7 @@ void common_free(void *ptr)
     malloc_header *header = static_cast<malloc_header *>(ptr);
     header--;
     if (header->magic_ != MALLOC_HEADER_MAGIC)
-        abort();
+        ::abort();
 
     int i = Stdlib::HashPtr(header) % MALLOC_LIST_COUNT;
     g_mem_list_lock[i].Lock();
@@ -101,7 +101,7 @@ void* common_malloc(size_t size)
 {
     void *ptr = malloc(size);
     if (ptr == nullptr)
-        abort();
+        ::abort();
 
     return ptr;
 }

@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 #include <common/sync/signal.h>
 #include <common/sync/process.h>

@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (!server.Start(argv[1], port.Value(), 0)) {
+    if (!server.Start(argv[1], port.Value(), 2)) {
         Trace(0, "can't run server\n");
         return -1;
     }

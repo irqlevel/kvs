@@ -1,6 +1,8 @@
 #include "corwmutex.h"
 #include "coroutine.h"
 
+#include <common/stdlib/trace.h>
+
 namespace Sync
 {
 
@@ -50,10 +52,13 @@ void CoRwMutex::Lock()
 
     auto self = Coroutine::Self();
 
+    BUG_ON(self.Get() == nullptr);
+
     for (;;) {
         mu_lock_.Lock();
         if (owner_.Get() == nullptr && shared_owner_count_ == 0) {
-            owner_ = self;
+            owner_.Reset(self.Get());
+            //Trace(0, "this %p self %p  owner %p\n", this, self.Get(), owner_.Get());
             mu_lock_.Unlock();
             return;
         } else {
@@ -78,6 +83,7 @@ void CoRwMutex::ReadLock()
         mu_lock_.Lock();
         if (owner_.Get() == nullptr) {
             shared_owner_count_++;
+            //Trace(0, "this %p rlock %p", this, self.Get());
             mu_lock_.Unlock();
             return;
         } else {
@@ -101,11 +107,20 @@ void CoRwMutex::Unlock()
     auto self = Coroutine::Self();
     mu_lock_.Lock();
     if (shared_owner_count_ == 0) {
+        //if (self.Get() != owner_.Get())
+            //Trace(0, "this %p self %p owner %p\n", this, self.Get(), owner_.Get());
+
         BUG_ON(self.Get() != owner_.Get());
+        //Trace(0, "this %p owner %p reset\n", this, owner_.Get());
         owner_.Reset(nullptr);
         WakeupWaiters(true);
         WakeupWaiters(false);
     } else {
+        //if (owner_.Get() != nullptr)
+            //Trace(0, "this %p self %p owner %p\n", this, self.Get(), owner_.Get());
+
+        //Trace(0, "this %p runlock %p\n", this, self.Get());
+
         BUG_ON(owner_.Get() != nullptr);
         shared_owner_count_--;
         if (shared_owner_count_ == 0) {

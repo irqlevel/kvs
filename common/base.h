@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stddef.h>
 #include <stdarg.h>
+
 #include <common/stdlib/abort.h>
 
 typedef unsigned long ulong;
@@ -43,6 +44,6 @@ static_assert(sizeof(s64) == 8, "invalid size");
 #define unlikely(x)     __builtin_expect((x),0)
 
 #define BUG_ON(condition)   \
-        (unlikely(condition)) ? Stdlib::Abort() : false
+        (unlikely(condition)) ? Stdlib::Abort(__FILE__, __LINE__, __FUNCTION__) : false
 
 const size_t kPageSize = 4096;
