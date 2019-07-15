@@ -23,6 +23,8 @@ namespace Lbs
 
         Stdlib::Result<size_t, Stdlib::Error> Read(s64 offset, void *data, size_t data_size);
 
+        Stdlib::Error Sync();
+
         const Stdlib::String& GetName() const;
 
         const Stdlib::String& GetDiskId() const;
@@ -32,11 +34,13 @@ namespace Lbs
         s64 GetBlockSize();
 
     private:
-        Stdlib::String _name;
-        Stdlib::String _disk_id;
-        s64 _size;
-        s64 _block_size;
-        FileSys::File _file;
+        Stdlib::Error CheckIoParameters(s64 offset, size_t data_size);
+
+        Stdlib::String name_;
+        Stdlib::String disk_id_;
+        s64 size_;
+        s64 block_size_;
+        FileSys::File file_;
     };
 
     using DiskPtr = Stdlib::SharedPtr<Disk>;
@@ -56,8 +60,7 @@ namespace Lbs
     private:
 
         Stdlib::Result<Stdlib::String, Stdlib::Error> GenerateDiskId();
-
-        Stdlib::HashMap<Stdlib::String, DiskPtr, 17, &Stdlib::String::Hash> _disk_map;
-        Sync::CoRwMutex _disk_map_lock;
+        Stdlib::HashMap<Stdlib::String, DiskPtr, 17, &Stdlib::String::Hash> disk_map_;
+        Sync::CoRwMutex disk_map_lock_;
     };
 }

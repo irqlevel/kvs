@@ -20,13 +20,9 @@ namespace Net
 
 static const int SocketLL = 6;
 
-Socket::Socket()
-    : fd_(-1)
-{
-}
-
-Socket::Socket(int fd)
+Socket::Socket(int fd, int flags)
     : fd_(fd)
+    , flags_(flags)
 {
 }
 
@@ -96,10 +92,12 @@ Stdlib::Error Socket::Bind(const char *addr, int port)
         goto fail;
     }
 
-    err = MakeFdNonBlocking(fd);
-    if (err) {
-        Trace(SocketLL, "cant make fd non blocking\n");
-        goto fail;
+    if (flags_ & kNonBlocking) {
+        err = MakeFdNonBlocking(fd);
+        if (err) {
+            Trace(SocketLL, "cant make fd non blocking\n");
+            goto fail;
+        }
     }
 
     fd_ = fd;
@@ -155,10 +153,12 @@ Stdlib::Error Socket::Connect(const char *addr, int port)
         goto fail;
     }
 
-    err = MakeFdNonBlocking(fd);
-    if (err) {
-        Trace(SocketLL, "cant make fd non blocking error %d\n", err.Code());
-        goto fail;
+    if (flags_ & kNonBlocking) {
+        err = MakeFdNonBlocking(fd);
+        if (err) {
+            Trace(SocketLL, "cant make fd non blocking error %d\n", err.Code());
+            goto fail;
+        }
     }
 
     fd_ = fd;
@@ -193,10 +193,12 @@ Stdlib::Result<Socket*, Stdlib::Error> Socket::Accept()
         return Stdlib::Result<Socket*, Stdlib::Error>(STDLIB_ERRNO_ERROR(Stdlib::Errno::Get()));
     }
 
-    result.SetError(MakeFdNonBlocking(fd));
-    if (result.Error()) {
-        Trace(SocketLL, "make fd nonblocking error %d\n", result.Error().Code());
-        goto fail;
+    if (flags_ & kNonBlocking) {
+        result.SetError(MakeFdNonBlocking(fd));
+        if (result.Error()) {
+            Trace(SocketLL, "make fd nonblocking error %d\n", result.Error().Code());
+            goto fail;
+        }
     }
 
     val = 1;

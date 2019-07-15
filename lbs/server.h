@@ -40,8 +40,6 @@ private:
     Server& operator=(const Server& other) = delete;
     Server& operator=(Server&& other) = delete;
 
-    Sync::Atomic stop_signal_pending_;
-
     Stdlib::Error EchoInternal(Stdlib::UniquePtr<echo_request> &req, Stdlib::UniquePtr<echo_response> &resp);
 
     static Stdlib::Error Echo(Stdlib::UniquePtr<echo_request> &req, Stdlib::UniquePtr<echo_response> &resp);
@@ -59,9 +57,15 @@ private:
 
     static Stdlib::Error ReadDisk(Stdlib::UniquePtr<read_disk_request> &req, Stdlib::UniquePtr<read_disk_response> &resp);
 
+    Stdlib::Error SyncDiskInternal(Stdlib::UniquePtr<sync_disk_request> &req, Stdlib::UniquePtr<sync_disk_response> &resp);
+
+    static Stdlib::Error SyncDisk(Stdlib::UniquePtr<sync_disk_request> &req, Stdlib::UniquePtr<sync_disk_response> &resp);
+
     Stdlib::Error MakeErrorResponse(Stdlib::Error err, response_header &resp);
 
-    DiskManager _disk_manager;
+    Sync::Atomic stop_signal_pending_;
+
+    DiskManager disk_manager_;
 };
 
 }

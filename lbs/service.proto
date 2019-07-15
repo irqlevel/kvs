@@ -6,6 +6,7 @@ enum request_type {
     stat_disk = 3;
     write_disk = 4;
     read_disk = 5;
+    sync_disk = 6;
 }
 
 message request_header {
@@ -30,7 +31,8 @@ message echo_response {
 message add_disk_request {
     required request_header header = 1;
     required string name = 2;
-    required int64 block_size = 3;
+    required int64 size = 3;
+    required int64 block_size = 4;
 }
 
 message add_disk_response {
@@ -72,4 +74,13 @@ message read_disk_request {
 message read_disk_response {
     required response_header header = 1;
     required bytes data = 3;
+}
+
+message sync_disk_request {
+    required request_header header = 1;
+    required string disk_id = 2;
+}
+
+message sync_disk_response {
+    required response_header header = 1;
 }

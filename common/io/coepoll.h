@@ -35,7 +35,7 @@ namespace IO
 
     private:
         using CoSetType = Stdlib::HashSet<Sync::CoroutinePtr, 7, &Sync::HashCoroutinePtr>;
-        Stdlib::HashMap<int, Stdlib::SharedPtr<CoSetType>, 100153, &Stdlib::HashInt> fd_co_map_;
+        Stdlib::HashMap<int, Stdlib::SharedPtr<CoSetType>, 100153, &Stdlib::HashIntNop> fd_co_map_;
 
         CoEpoll(const CoEpoll& other) = delete;
         CoEpoll(CoEpoll&& other) = delete;

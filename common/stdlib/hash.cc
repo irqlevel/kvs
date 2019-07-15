@@ -27,6 +27,11 @@ size_t HashInt(const int& value)
     return Djb2Hash((void*)&value, sizeof(value));
 }
 
+size_t HashIntNop(const int& value)
+{
+    return value;
+}
+
 size_t HashBytes(const ByteArray<u8>& bytes)
 {
     return Djb2Hash(bytes.GetConstBuf(), bytes.GetSize());

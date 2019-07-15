@@ -44,7 +44,7 @@ public:
     class Client {
     public:
         Client();
-        Stdlib::Error Connect(const char *address, int port);
+        Stdlib::Error Connect(const char *address, int port, bool non_blocking = true);
         Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error> SendRequest(u32 type, const Stdlib::ByteArray<u8>& request);
         void Close();
         virtual ~Client();
@@ -62,6 +62,8 @@ private:
     Stdlib::Error ReadRequest(Net::TcpServer::Connection *conn, Stdlib::UniquePtr<Request> &request, bool& closed);
 
     Stdlib::Error WriteResponse(Net::TcpServer::Connection *conn, Stdlib::UniquePtr<Response> &response);
+
+
 };
 
 }

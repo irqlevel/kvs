@@ -26,7 +26,7 @@ Stdlib::Error File::Open(const char* path, int flags)
         oflags |= O_DIRECT;
     if (flags & kSync)
         oflags |= O_SYNC;
-    if (flags & KReadWrite)
+    if (flags & kReadWrite)
         oflags |= O_RDWR;
 
     fd_ = ::open(path, oflags, 0666);
@@ -54,6 +54,24 @@ Stdlib::Result<size_t, Stdlib::Error> File::Read(void* buf, size_t nbytes)
     return Stdlib::Result<size_t, Stdlib::Error>(r, 0);
 }
 
+Stdlib::Result<size_t, Stdlib::Error>  File::WriteAt(s64 offset, const void *buf, size_t nbytes)
+{
+    ssize_t r = ::pwrite(fd_, buf, nbytes, offset);
+    if (r < 0)
+        return STDLIB_ERRNO_ERROR(Stdlib::Errno::Get());
+
+    return Stdlib::Result<size_t, Stdlib::Error>(r, 0);
+}
+
+Stdlib::Result<size_t, Stdlib::Error> File::ReadAt(s64 offset, void* buf, size_t nbytes)
+{
+    ssize_t r = ::pread(fd_, buf, nbytes, offset);
+    if (r < 0)
+        return STDLIB_ERRNO_ERROR(Stdlib::Errno::Get());
+
+    return Stdlib::Result<size_t, Stdlib::Error>(r, 0);
+}
+
 Stdlib::Result<size_t, Stdlib::Error>  File::Write(const void *buf, size_t nbytes)
 {
     ssize_t r = ::write(fd_, buf, nbytes);
@@ -61,6 +79,28 @@ Stdlib::Result<size_t, Stdlib::Error>  File::Write(const void *buf, size_t nbyte
         return STDLIB_ERRNO_ERROR(Stdlib::Errno::Get());
 
     return Stdlib::Result<size_t, Stdlib::Error>(r, 0);
+}
+
+Stdlib::Result<s64, Stdlib::Error> File::Seek(u64 offset, int whence)
+{
+    int wh;
+
+    if (whence == kSeekCur)
+        wh = SEEK_CUR;
+    else if (whence == kSeekEnd)
+        wh = SEEK_END;
+    else if (whence == kSeekSet)
+        wh = SEEK_SET;
+    else
+        return Stdlib::Result<s64, Stdlib::Error>(0, STDLIB_ERRNO_ERROR(EINVAL)); 
+
+    s64 result = ::lseek64(fd_, offset, wh);
+    if (result == -1LL) {
+        int err = Stdlib::Errno::Get();
+        return Stdlib::Result<s64, Stdlib::Error>(0, STDLIB_ERRNO_ERROR(err));
+    }
+
+    return Stdlib::Result<s64, Stdlib::Error>(result, 0);
 }
 
 void File::Close()
@@ -74,6 +114,15 @@ void File::Close()
 Stdlib::Error File::Sync()
 {
     int r = ::fsync(fd_);
+    if (r < 0)
+        return STDLIB_ERRNO_ERROR(Stdlib::Errno::Get());
+
+    return 0;
+}
+
+Stdlib::Error File::DataSync()
+{
+    int r = ::fdatasync(fd_);
     if (r < 0)
         return STDLIB_ERRNO_ERROR(Stdlib::Errno::Get());
 

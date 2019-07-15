@@ -19,3 +19,5 @@ write_disk_request.data max_size: 65536
 
 read_disk_request.disk_id max_size: 64
 read_disk_response.data max_size: 65536
+
+sync_disk_request.disk_id max_size: 64

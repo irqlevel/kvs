@@ -20,6 +20,7 @@ namespace Lbs
         RegisterHandler<add_disk_request, add_disk_response>(request_type_add_disk, add_disk_request_fields, add_disk_response_fields, &Server::AddDisk);
         RegisterHandler<write_disk_request, write_disk_response>(request_type_write_disk, write_disk_request_fields, write_disk_response_fields, &Server::WriteDisk);
         RegisterHandler<read_disk_request, read_disk_response>(request_type_read_disk, read_disk_request_fields, read_disk_response_fields, &Server::ReadDisk);
+        RegisterHandler<sync_disk_request, sync_disk_response>(request_type_sync_disk, sync_disk_request_fields, sync_disk_response_fields, &Server::SyncDisk);
     }
 
     Server::~Server()
@@ -55,7 +56,7 @@ namespace Lbs
         if (!name.Append(req->name, Stdlib::StrLen(req->name)))
             return MakeErrorResponse(LbsErrInvalidRequest, resp->header);
 
-        auto result = _disk_manager.AddDisk(name, 0, 0);
+        auto result = disk_manager_.AddDisk(name, req->size, req->block_size);
         if (result.Error())
             return MakeErrorResponse(result.Error(), resp->header);
 
@@ -74,7 +75,7 @@ namespace Lbs
         if (!disk_id.Append(req->disk_id, Stdlib::StrLen(req->disk_id)))
             return MakeErrorResponse(LbsErrInvalidRequest, resp->header);
 
-        auto result = _disk_manager.LookupDisk(disk_id);
+        auto result = disk_manager_.LookupDisk(disk_id);
         if (result.Error())
             return MakeErrorResponse(result.Error(), resp->header);
 
@@ -92,6 +93,28 @@ namespace Lbs
         return Server::GetInstance().WriteDiskInternal(req, resp);
     }
 
+    Stdlib::Error Server::SyncDiskInternal(Stdlib::UniquePtr<sync_disk_request> &req, Stdlib::UniquePtr<sync_disk_response> &resp)
+    {
+        Stdlib::String disk_id;
+        if (!disk_id.Append(req->disk_id, Stdlib::StrLen(req->disk_id)))
+            return MakeErrorResponse(LbsErrInvalidRequest, resp->header);
+
+        auto result = disk_manager_.LookupDisk(disk_id);
+        if (result.Error())
+            return MakeErrorResponse(result.Error(), resp->header);
+
+        auto disk = result.Value();
+        auto err = disk->Sync();
+        if (err)
+            return MakeErrorResponse(err, resp->header);
+
+        return 0;
+    }
+
+    Stdlib::Error Server::SyncDisk(Stdlib::UniquePtr<sync_disk_request> &req, Stdlib::UniquePtr<sync_disk_response> &resp) {
+        return Server::GetInstance().SyncDiskInternal(req, resp);
+    }
+
     Stdlib::Error Server::ReadDiskInternal(Stdlib::UniquePtr<read_disk_request> &req, Stdlib::UniquePtr<read_disk_response> &resp)
     {
         if (req->size > static_cast<s64>(sizeof(resp->data.bytes)))
@@ -101,7 +124,7 @@ namespace Lbs
         if (!disk_id.Append(req->disk_id, Stdlib::StrLen(req->disk_id)))
             return MakeErrorResponse(LbsErrInvalidRequest, resp->header);
 
-        auto result = _disk_manager.LookupDisk(disk_id);
+        auto result = disk_manager_.LookupDisk(disk_id);
         if (result.Error())
             return MakeErrorResponse(result.Error(), resp->header);
 
@@ -126,7 +149,7 @@ namespace Lbs
     void Server::Shutdown()
     {
         Pb::Server::Shutdown();
-        _disk_manager.Shutdown();
+        disk_manager_.Shutdown();
     }
 
     void Server::OnStopSignal(int signo)

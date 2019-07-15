@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     auto& tracer = Stdlib::Tracer::GetInstance();
     tracer.SetLevel(0);
 
-    Trace(0, "Version: %s %s\n", __DATE__, __TIME__);
+    Trace(0, "version: %s %s\n", __DATE__, __TIME__);
 
     if (argc != 3) {
         Trace(0, "invalid count of args\n");
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (!server.Start(argv[1], port.Value(), 2)) {
+    if (!server.Start(argv[1], port.Value(), 0)) {
         Trace(0, "can't run server\n");
         return -1;
     }

@@ -148,10 +148,10 @@ namespace Net
     {
     }
 
-    Stdlib::Error TcpReqServer::Client::Connect(const char *address, int port)
+    Stdlib::Error TcpReqServer::Client::Connect(const char *address, int port, bool non_blocking)
     {
         socket_.Reset();
-        socket_ = Stdlib::MakeUnique<Net::Socket>();
+        socket_ = Stdlib::MakeUnique<Net::Socket>(-1, (non_blocking) ? Net::Socket::kNonBlocking : 0);
 
         if (socket_.Get() == nullptr)
             return STDLIB_ERROR(1, "client", "no memory");

@@ -9,7 +9,9 @@ namespace Net
 class Socket : public IO::ReadWriteCloser
 {
 public:
-    Socket();
+    static const int kNonBlocking = 0x1;
+
+    Socket(int fd = -1, int flags = kNonBlocking);
     virtual ~Socket();
 
     Stdlib::Error Connect(const char *addr, int port);
@@ -25,7 +27,6 @@ public:
     virtual void Close() override;
 
 private:
-    Socket(int fd);
     Socket(const Socket& other) = delete;
     Socket(Socket&& other) = delete;
     Socket& operator=(const Socket& other) = delete;
@@ -37,6 +38,7 @@ private:
     static Stdlib::Error MakeFdNonBlocking(int fd);
 
     int fd_;
+    int flags_;
 };
 
 }

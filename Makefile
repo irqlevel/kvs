@@ -9,13 +9,13 @@ BUILD_DIRS_CLEAN = $(addsuffix .clean,$(BUILD_DIRS))
 
 .PHONY: all check debug clean $(BUILD_DIRS) $(BUILD_DIRS_CLEAN) $(SOURCE_DIRS) $(SOURCE_DIRS_CLEAN)
 
-all: export EXTRA_CFLAGS = -D__RELEASE__ -O3 -g3 -ggdb3 -DNDEBUG -Ofast
+all: export EXTRA_CFLAGS = -D__RELEASE__ -O3 -DNDEBUG -Ofast -D_LARGEFILE64_SOURCE
 all: check $(BUILD_DIRS) $(SOURCE_DIRS)
 
-asan: export EXTRA_CFLAGS = -D__DEBUG__ -DDEBUG -O0 -g3 -ggdb3 -fno-inline -fsanitize=address
+asan: export EXTRA_CFLAGS = -D__DEBUG__ -DDEBUG -O0 -g3 -ggdb3 -fno-inline -fsanitize=address -D_LARGEFILE64_SOURCE
 asan: check $(BUILD_DIRS) $(SOURCE_DIRS)
 
-debug: export EXTRA_CFLAGS = -D__DEBUG__ -DDEBUG -O0 -g3 -ggdb3 -fno-inline
+debug: export EXTRA_CFLAGS = -D__DEBUG__ -DDEBUG -O0 -g3 -ggdb3 -fno-inline -D_LARGEFILE64_SOURCE
 debug: check $(BUILD_DIRS) $(SOURCE_DIRS)
 
 clean: $(BUILD_DIRS_CLEAN) $(SOURCE_DIRS_CLEAN)

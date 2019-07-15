@@ -49,14 +49,23 @@ namespace IO
         return 0;
     }
 
-    Stdlib::Error AioContext::Submit(int fd, s64 offset, void *buf, size_t buf_size, int event_fd, int flags)
+    Stdlib::Error AioContext::Submit(int fd, s64 offset, void *buf, size_t buf_size, int event_fd, int flags, int op)
     {
         struct iocb cb;
 	    struct iocb *cbs[1];
 
         memset(&cb, 0, sizeof(cb));
 	    cb.aio_fildes = fd;
-	    cb.aio_lio_opcode = (flags & kWrite) ? IOCB_CMD_PWRITE : IOCB_CMD_PREAD;
+
+        if (op == kRead)
+            cb.aio_lio_opcode = IOCB_CMD_PREAD;
+        else if (op == kWrite)
+            cb.aio_lio_opcode = IOCB_CMD_PWRITE;
+        else if (op == kDataSync)
+            cb.aio_lio_opcode = IOCB_CMD_FDSYNC;
+        else
+            return STDLIB_ERRNO_ERROR(EINVAL);
+
         cb.aio_buf = reinterpret_cast<ulong>(buf);
         cb.aio_offset = offset;
         cb.aio_nbytes = buf_size;

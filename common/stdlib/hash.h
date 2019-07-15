@@ -14,6 +14,8 @@ size_t HashInt(const int& value);
 
 size_t HashIntAdd(const int& value, size_t hash = 5381);
 
+size_t HashIntNop(const int& value);
+
 size_t HashBytes(const ByteArray<u8>& bytes);
 
 }

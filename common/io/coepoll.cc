@@ -40,7 +40,7 @@ namespace IO
                 return STDLIB_ERRNO_ERROR(ENOMEM);
             }
 
-            auto err = epoll_.Add(fd, IO::Epoll::kIN | IO::Epoll::kOUT | IO::Epoll::kONESHOT);
+            auto err = epoll_.Add(fd, IO::Epoll::kIN | IO::Epoll::kOUT);// | IO::Epoll::kONESHOT);
             if (err) {
                 fd_co_map_.Remove(fd);
                 return err;
@@ -105,9 +105,9 @@ namespace IO
                         }
 
                         auto it2 = fd_co_map_.Lookup(event.fd_);
-                        if (it2 != fd_co_map_.End())
-                            epoll_.Mod(event.fd_, IO::Epoll::kIN | IO::Epoll::kOUT | IO::Epoll::kONESHOT);
-                        else
+                        if (it2 != fd_co_map_.End()) {
+                            //epoll_.Mod(event.fd_, IO::Epoll::kIN | IO::Epoll::kOUT | IO::Epoll::kONESHOT);
+                        } else
                             epoll_.Del(event.fd_);
                     /*} else {
                         fd_co_map_.Remove(event.Fd);
