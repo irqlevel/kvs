@@ -4,71 +4,100 @@
 namespace Stdlib
 {
 
-Bitmap::Bitmap(void* address, ulong bit_count)
-    : address_(address)
-    , bit_count_(bit_count)
+Bitmap::Bitmap()
+    : bit_count_(0)
 {
-    BUG_ON((ulong)address_ % sizeof(ulong));
+}
+
+bool Bitmap::Alloc(ulong bit_count)
+{
+    bitmap_.Clear();
+    auto result = bitmap_.ReserveAndUse(Stdlib::RoundUp(Stdlib::RoundUp(bit_count, 8)/8, sizeof(ulong)));    
+    if (result)
+        bit_count_ = bit_count;
+
+    return result;
+}
+
+size_t Bitmap::GetSize()
+{
+    return bitmap_.GetSize();
 }
 
 Bitmap::~Bitmap()
 {
 }
 
+void Bitmap::ClearAll()
+{
+    Stdlib::MemSet(bitmap_.GetBuf(), 0, bitmap_.GetSize());
+}
+
+ulong *Bitmap::GetBase()
+{
+    return reinterpret_cast<ulong *>(bitmap_.GetBuf());
+}
+
+void* Bitmap::GetBuf()
+{
+    return bitmap_.GetBuf();
+}
+
 void Bitmap::SetBit(ulong position)
 {
     BUG_ON(position >= bit_count_);
 
-    ulong offset = position / (8 * sizeof(ulong));
-    ulong shift = position % (8 * sizeof(ulong));
+    ulong offset = position / (BITS_PER_LONG);
+    ulong shift = position % (BITS_PER_LONG);
 
-    *((ulong *)address_ + offset) |= (1UL << shift);
+    *(GetBase() + offset) |= (1UL << shift);
 }
 
 void Bitmap::ClearBit(ulong position)
 {
     BUG_ON(position >= bit_count_);
 
-    ulong offset = position / (8 * sizeof(ulong));
-    ulong shift = position % (8 * sizeof(ulong));
+    ulong offset = position / (BITS_PER_LONG);
+    ulong shift = position % (BITS_PER_LONG);
 
-    *((ulong *)address_ + offset) &= ~(1UL << shift);    
+    *(GetBase() + offset) &= ~(1UL << shift);    
 }
 
 bool Bitmap::TestBit(ulong position)
 {
     BUG_ON(position >= bit_count_);
 
-    ulong offset = position / (8 * sizeof(ulong));
-    ulong shift = position % (8 * sizeof(ulong));
+    ulong offset = position / (BITS_PER_LONG);
+    ulong shift = position % (BITS_PER_LONG);
 
-    if ((*((ulong *)address_ + offset)) & (1UL << shift))
+    if ((*(GetBase() + offset)) & (1UL << shift))
         return true;
+
     return false;
 }
 
 long Bitmap::FindSetZeroBit()
 {
-    ulong* curr = (ulong*)address_;
-    long restbit_count_ = bit_count_;
+    ulong* curr = GetBase();
+    long rest_bit_count = bit_count_;
 
-    while (restbit_count_ > 0)
+    while (rest_bit_count > 0)
     {
         ulong value = *curr;
         if (value != ~0UL)
         {
-            for (ulong shift = 0; shift < Min<ulong>(8 * sizeof(ulong), restbit_count_); shift++)
+            for (ulong shift = 0; shift < Min<ulong>(BITS_PER_LONG, rest_bit_count); shift++)
             {
                 if (!(value & (1UL << shift)))
                 {
                     *curr |= (1UL << shift);
-                    long position = 8 * ((ulong)curr - (ulong)address_) + shift;
+                    long position = 8 * (reinterpret_cast<ulong>(curr) - reinterpret_cast<ulong>(GetBase())) + shift;
                     BUG_ON((ulong)position >= bit_count_);
                     return position;
                 }
             }
         }
-        restbit_count_ -= 8 * sizeof(ulong);
+        rest_bit_count -= BITS_PER_LONG;
         curr++;
     }
     return -1;

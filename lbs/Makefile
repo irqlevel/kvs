@@ -1,6 +1,6 @@
 include $(ROOTDIR)/Makefile.inc
 
-SOURCES=main.cc server.cc service.pb.c disk_manager.cc
+SOURCES=main.cc server.cc service.pb.c disk_manager.cc disk.cc
 BINARY=lbs
 
 all:

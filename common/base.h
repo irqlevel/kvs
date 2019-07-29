@@ -17,8 +17,10 @@ typedef char s8;
 typedef short s16;
 typedef int s32;
 typedef long long s64;
+typedef unsigned char byte;
 
 static_assert(sizeof(char) == 1, "invalid size");
+static_assert(sizeof(byte) == 1, "invalid size");
 
 static_assert(sizeof(u8) == 1, "invalid size");
 static_assert(sizeof(u16) == 2, "invalid size");
@@ -29,6 +31,8 @@ static_assert(sizeof(s8) == 1, "invalid size");
 static_assert(sizeof(s16) == 2, "invalid size");
 static_assert(sizeof(s32) == 4, "invalid size");
 static_assert(sizeof(s64) == 8, "invalid size");
+
+#define BITS_PER_LONG (8 * sizeof(long))
 
 #define OFFSET_OF(type, field)	\
 		(unsigned long)&((type*)0)->field

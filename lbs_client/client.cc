@@ -85,7 +85,6 @@ namespace Lbs
         if (err)
             return err;
 
-
         Stdlib::ByteArray<u8> data;
         if (!data.ReserveAndUse(resp->data.size))
             return Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error>(LbsClientErrNoMemory);
@@ -93,7 +92,6 @@ namespace Lbs
         Stdlib::MemCpy(data.GetBuf(), resp->data.bytes, resp->data.size);
         return Stdlib::Result<Stdlib::ByteArray<u8>, Stdlib::Error>(Stdlib::Move(data), 0);
     }
-
 
     Stdlib::Error Client::SyncDisk(const Stdlib::String& disk_id)
     {
